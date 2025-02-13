@@ -1,0 +1,297 @@
+##create virtual env and activate it
+
+py -m venv env
+
+##install Django
+
+pip install django
+
+##create cv project 
+
+django-admin startproject cv
+
+## create "pdf" app
+
+py manage.py startapp pdf 
+
+## add "pdf" app in settings.py
+
+## migrate the admin migrations
+
+py manage.py migrate
+
+## create models in models.py
+
+from django.db import models
+
+class Profile(models.Model):
+
+    name = models.CharField(max_length=200)
+    email = models.CharField(max_length=200)
+    phone = models.CharField(max_length=200)
+    summary = models.TextField(max_length=2000)
+    degree = models.CharField(max_length=200)
+    school = models.CharField(max_length=200)
+    university = models.CharField(max_length=200)
+    previous_work = models.TextField(max_length=1000)
+    skills = models.TextField(max_length=1000)
+    employed = models.BooleanField(default=False)
+
+## create and migrate the migrations
+
+py manage.py makemigrations
+py manage.py migrate
+
+
+## create superuser
+
+py manage.py createsuperuser
+
+## import Profile model in admin.py
+
+from django.contrib import admin
+from .models import Profile
+
+admin.site.register(Profile)
+
+##create 'templates' folder with 'pdf' internal folder in pdf app
+
+##create 'accept.html' file in templates\pdf folder
+
+## add bootstrap cdn
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+ 
+## get boostrap form
+
+<form>
+  <div class="form-group">
+    <label for="exampleInputEmail1">Email address</label>
+    <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
+    <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
+  </div>
+  <div class="form-group">
+    <label for="exampleInputPassword1">Password</label>
+    <input type="password" class="form-control" id="exampleInputPassword1">
+  </div>
+  <div class="form-group form-check">
+    <input type="checkbox" class="form-check-input" id="exampleCheck1">
+    <label class="form-check-label" for="exampleCheck1">Check me out</label>
+  </div>
+  <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+
+## add the to form the field of model
+
+
+## in views.py add the views 
+
+from django.shortcuts import render
+from .models import Profile
+
+def accept(request):
+    return render(request, 'pdf/accept.html')
+
+
+## in urls.py (in cv folder) import new view and 
+
+from django.contrib import admin
+from django.urls import path
+from pdf import views
+
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', views.accept, name="accept")
+]
+
+##check the form by running the server
+
+py manage.py runserver
+
+
+##update views.py 
+
+if request.method == "POST":
+        name = request.POST.get("name","")
+        email = request.POST.get("email","")
+        phone = request.POST.get("phone","")
+        summary = request.POST.get("summary","")
+        degree = request.POST.get("degree","")
+        school = request.POST.get("school","")
+        university = request.POST.get("university","")
+        previous_work= request.POST.get("previous_work","")
+        skills = request.POST.get("skills","")
+
+        employed = request.POST.get("employed", "")
+        if employed == 'on':
+            employed = True
+        else:
+            employed = False
+        profile = Profile(name=name,email=email,phone=phone,summary=summary,degree=degree,school=school,university=university,previous_work=previous_work,skills=skills,employed=employed)
+        profile.save()
+
+##check on admin page the submitted form
+
+
+##create html template 'resume.html'
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <h2>{{user_profile.name}}</h2>
+    <h2>{{user_profile.email}}</h2>
+    <h2>{{user_profile.phone}}</h2>
+    <hr/>
+    <br/>
+    <p>Summary</p>
+    <p>{{user_profile.summary}}</p>
+    <hr/>
+    <p>Skills</p>
+    <p>{{user_profile.skills}}</p>
+    <hr/>
+    <p>Education</p>
+    <ul>
+        <li>Schooling: {{user_profile.school}}</li>
+        <li>{{user_profile.degree}} from {{user_profile.university}}</li>
+    </ul>
+    <hr/>
+    <p>Previous Work</p>
+    <p>{{user_profile.previous_work}}</p>
+<p>Employed - {{user_profile.employed}}</p> 
+
+</body>
+</html>
+
+
+##update views.py with 'def resume'
+
+def resume(request,id):
+    user_profile = Profile.objects.get(pk=id)
+    return render(request, 'pdf/resume.html', {'user_profile': user_profile})
+
+##update urls.py with new view path
+
+
+from django.contrib import admin
+from django.urls import path
+from pdf import views
+
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', views.accept, name="accept"),
+    path('<int:id>/', views.resume, name="resume"),
+
+
+
+## Install PDFKIT - open cmd
+
+pip install pdfkit
+
+## open wkhtmltopdf in browser
+https://wkhtmltopdf.org/downloads.html
+
+install 64-bit version installer
+
+##or install packages and add the path of folder with wkhtmltopdf.exe to the Path environment setting (restart required)
+
+
+
+###FOR MAC PACKAGES
+
+pip install pdfkit
+
+brew install Caskroom/cask/wkhtmltopdf
+
+
+
+##update the views.py
+
+from django.shortcuts import render
+from .models import Profile
+import pdfkit
+from django.http import HttpResponse
+from django.template import loader
+import io
+
+def resume(request,id):
+    user_profile = Profile.objects.get(pk=id)
+    template = loader.get_template('pdf/resume.html')
+    html = template.render({'user_profile':user_profile})
+    options ={
+        'page-size':'Letter',
+        'encoding':"UTF-8",
+    }
+    pdf = pdfkit.from_string(html,False,options)
+    response = HttpResponse(pdf,content_type='application/pdf')
+    response['Content-Disposition'] ='attachment'
+    filename = "resume.pdf"
+    return response
+
+##Check the work by accessing the resume with id 1
+
+
+##update views.py with def list
+
+def list(request):
+    profiles = Profile.objects.all()
+    return render(request,'pdf/list.html',{'profiles':profiles})
+
+##create template list.html 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <title>Document</title>
+</head>
+<body>
+    <div class="container">
+        <div class="row m-5">
+            <div class="col-md-12">
+                <h2>CV Database Profile List</h2>
+            </div>
+
+        </div>
+
+        {% for profile in profiles %}
+        <div class="row">
+            <div class="col-md-6">
+                {‌{profile.name}}
+            </div>    
+            <div class="col-md-6">
+                   <a href="/{‌{profile.id}}" class="btn btn-warning">Download CV</a>
+                </div>  
+        </div>
+    <hr>
+        {% endfor %}
+    </div>
+</body>
+</html>
+
+##create url for list view in urls.py
+
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', views.accept, name="accept"),
+    path('<int:id>/', views.resume, name="resume"),
+    path('list/', views.list, name="list"),
+]
+
+
+##check the list on server
+
+
