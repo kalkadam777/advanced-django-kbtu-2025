@@ -1,0 +1,913 @@
+##create venv 
+
+py -m venv new
+
+##activate venv 
+
+new\Scripts\activate.bat
+
+##install Django
+
+pip install django
+
+##create project mysite 
+
+django-admin startproject mysite 
+cd mysite 
+
+##create app myapp
+
+py manage.py startapp myapp
+
+##add created app to the installed apps in settings
+
+##apply migrations 
+
+py manage.py makemigrations
+py manage.py migrate
+
+##create Expense model in models.py in myapp
+
+from django.db import models
+
+class Expense(models.Model):
+    name = models.CharField(max_length=200)
+    amount = models.IntegerField()
+    category = models.CharField(max_length=50)
+    date = models.DateField(auto_now=True)
+
+##run migrations 
+
+py manage.py makemigrations
+py manage.py migrate
+
+##create superuser 
+
+py manage.py createsuperuser
+
+##register Expense model in admin.py
+
+from .models import Expense
+
+admin.site.register(Expense)
+
+
+##update the models.py with __str__ method for Expense model 
+
+...
+    def __str__(self):
+        return self.name
+
+
+##create templates folder in myapp, add folder 'myapp' inside
+
+##create index.html in templates\myapp folder
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'myapp/styles.css' %}">
+    {% comment %} <link rel="stylesheet" href="{% static 'myapp/style.css' %}"> {% endcomment %}
+
+    <title>Document</title>
+</head>
+<body>
+    <h1>This is header</h1>
+</body>
+</html>
+
+##create view in views.py
+
+from django.shortcuts import render
+
+def index(request):
+    return render(request, 'myapp/index.html')
+
+
+##create urls.py in myapp, and add view path
+
+from django.contrib import admin
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+]
+
+
+
+##add path in urls.py in mysite
+
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', include('myapp.urls')),
+]
+
+
+##setup tailwind for Django (nodejs required)
+##in mysite project directory create package.json
+
+npm init -y 
+
+##install tailwind
+
+npm install tailwindcss@2.2.16
+
+
+## in myapp create static folder, inside create myapp folder
+
+##create src.css in myapp\static\myapp
+
+@tailwind base;
+@tailwind utilities;
+@tailwind components;
+
+##update scripts tag in package,json 
+
+...
+"scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tailwindcss build myapp/static/myapp/src.css -o myapp/static/myapp/styles.css"
+  },
+...
+
+##run the build script (styles.css with tailwind should be created)
+
+npm run build 
+
+##run dj server
+
+py manage.py runserver
+
+
+##create base.html as base template
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'myapp/styles.css' %}">
+    {% comment %} <link rel="stylesheet" href="{% static 'myapp/style.css' %}"> {% endcomment %}
+
+    <title>Document</title>
+</head>
+<body>
+    {%block body%}
+    {%endblock%}
+</body>
+</html>
+
+
+##rewrite he code in index.html
+
+{%extends 'myapp/base.html'%}
+{%block body%}
+    <h1>This is the index page</h1>
+{%endblock%}
+
+
+##create forms.py in myapp
+##create expense form for expense model
+
+from django.forms import ModelForm
+from .models import Expense
+
+class ExpenseForm(ModelForm):
+    class Meta:
+        model = Expense
+        fields = ['name', 'amount', 'category']
+
+
+##update views.py (add form)
+
+from django.shortcuts import render
+from .forms import ExpenseForm
+
+def index(request):
+    expense_form = ExpenseForm()
+    return render(request, 'myapp/index.html', {'expense_form':expense_form})
+
+
+##update index.html
+
+{%extends 'myapp/base.html'%}
+{%block body%}
+    <h1>This is the index page</h1>
+    <form class="shadow-lg m-10 rounded-lg" method="post">
+        {%csrf_token%}
+
+        <div class="form-container px-10 py-10 flex">
+            
+            <div class="mx-10">
+                <div class="mb-5">
+                    <label>Expense name</label>
+
+                </div>
+                <div class="border">
+                    {{expense_form.name}}
+                </div>
+            </div>
+
+            <div class="mx-10">
+                <div class="mb-5">
+                    <label>Amount</label>
+
+                </div>
+                <div class="border">
+                    {{expense_form.amount}}
+                </div>
+            </div>
+
+            <div class="mx-10">
+                <div class="mb-5">
+                    <label>Category</label>
+
+                </div>
+                <div class="border">
+                    {{expense_form.category}}
+                </div>
+            </div>
+
+            <div class="mx-10 mt-8">
+                <button class="bg-green-500 px-5 py-2 rounded-lg text-white font-bold">Add</button>
+            </div>
+        </div>
+    </form>
+{%endblock%}
+
+##make Add button submit the form
+##update views.py in myapp
+
+...
+def index(request):
+    if request.method == "POST":
+        expense = ExpenseForm(request.POST)
+        if expense.is_valid():
+            expense.save()
+        
+    expense_form = ExpenseForm()
+    return ...
+...
+
+##create and display expenses list
+
+from .forms import ExpenseForm
+from .models import Expense
+
+# Create your views here.
+def index(request):
+    if request.method == "POST":
+        expense = ExpenseForm(request.POST)
+        if expense.is_valid():
+            expense.save()
+        
+    expenses = Expense.objects.all()
+    expense_form = ExpenseForm()
+    return render(request, 'myapp/index.html', {'expense_form':expense_form, 'expenses':expenses})
+
+
+##update the index.html with expenses table
+
+{%extends 'myapp/base.html'%}
+{%block body%}
+    <h1>This is the index page</h1>
+    <form class="shadow-lg m-10 rounded-lg" method="post">
+        {%csrf_token%}
+
+        <div class="form-container px-10 py-10 flex">
+            
+            <div class="mx-10">
+                <div class="mb-5">
+                    <label>Expense name</label>
+
+                </div>
+                <div class="border">
+                    {{expense_form.name}}
+                </div>
+            </div>
+
+            <div class="mx-10">
+                <div class="mb-5">
+                    <label>Amount</label>
+
+                </div>
+                <div class="border">
+                    {{expense_form.amount}}
+                </div>
+            </div>
+
+            <div class="mx-10">
+                <div class="mb-5">
+                    <label>Category</label>
+
+                </div>
+                <div class="border">
+                    {{expense_form.category}}
+                </div>
+            </div>
+
+            <div class="mx-10 mt-8">
+                <button class="bg-green-500 px-5 py-2 rounded-lg text-white font-bold">Add</button>
+            </div>
+        </div>
+    </form>
+
+    <div>
+        Expenses
+    </div>
+    <div class="shadow-lg m-10 rounded-lg">
+        <div class="expense-header flex flex-wrap space-x-40">
+            <span>Name</span>
+            <span>Amount</span>
+            <span>Category</span>
+            <span>Date</span>
+        </div>
+        {% for expense in expenses %}
+        <div class="expense-row flex-wrap px-20 py-5">
+            <span class="font-bold">{{ expense.name }}</span>
+            <span class="font-bold">{{ expense.amount }}</span>
+            <span class="font-bold">{{ expense.category }}</span>
+            <span class="font-bold">{{ expense.date }}</span>
+        </div>
+        {%endfor%}
+    </div>
+    
+{%endblock%}
+
+
+##create custom css style style.css in static/myapp folder
+
+div.expense-header, div.expense-row{
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+div.expense-header span, div.expense-row span{
+    display: table-cell;
+    text-align: center;
+}
+
+
+##add new rel link in base.html for style.css after link to the styles.css
+
+...
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'myapp/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'myapp/style.css' %}">
+...
+
+
+##add the delete and edit buttons in spans of table in index.html 
+
+...
+        <div class="expense-header flex flex-wrap space-x-40">
+            <span>Name</span>
+            <span>Amount</span>
+            <span>Category</span>
+            <span>Date</span>
+            <span>Edit</span>
+            <span>Delete</span>
+        </div>
+        <hr class="m-10">
+        {% for expense in expenses %}
+        <div class="expense-row flex-wrap px-20 py-5">
+            <span class="font-bold">{{ expense.name }}</span>
+            <span class="font-bold">{{ expense.amount }}</span>
+            <span class="font-bold">{{ expense.category }}</span>
+            <span class="font-bold">{{ expense.date }}</span>
+            <span class="button"><a href="">Edit</a></span>
+            <span class="button"><a href="">Delete</a></span>
+        </div>
+        {%endfor%}
+...
+
+
+##create edit view in views.py
+
+def edit(request, id):
+    expense = Expense.objects.get(id=id)
+    expense_form= ExpenseForm(instance=expense)
+    return render(request, 'myapp/edit.html', {'expense_form': expense_form})
+
+
+
+##create edit.html template in templates/myapp folder
+
+{% extends 'myapp/base.html'%}
+
+{% block body%}
+    <form action="">
+        {{expense_form}}
+    </form>
+{% endblock %}
+
+
+
+
+##setup url pattern for edit view
+
+from django.contrib import admin
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('edit/<int:id>/', views.edit, name='edit')
+]
+
+
+##update the links for edit buttons in edit,html
+
+...
+            <span class="button"><a href="{% url 'edit' expense.id %}">Edit</a></span>
+            <span class="button"><a href="">Delete</a></span>
+        </div>
+...
+
+
+##add submit button in edit.html
+
+{% extends 'myapp/base.html'%}
+
+{% block body%}
+    <form method="post">
+        {%csrf_token%}
+        {{expense_form}}
+        <button type="submit">Edit data</button>
+    </form>
+{% endblock %}
+
+
+
+##update def edit() in views.py to handle post method
+
+def edit(request, id):
+    expense = Expense.objects.get(id=id)
+    expense_form= ExpenseForm(instance=expense)
+    
+    if request.method == "POST":
+        expense = Expense.objects.get(id=id)
+        form = ExpenseForm(request.POST,instance=expense)
+        if form.is_valid:
+            form.save()
+            return redirect('index')
+    return render(request, 'myapp/edit.html', {'expense_form': expense_form})
+
+
+
+
+##update the edit.html with styling
+
+
+{% extends 'myapp/base.html'%}
+
+{% block body%}
+    <form method="post" class="shadow-lg m-10">
+        {%csrf_token%}
+        <div class="px-10 py-10 flex">
+            <div class="mx-10">
+                <div class="mb-5">
+                    <label class="font-semibold">Expense name</label>
+                </div>
+                <div class="border p-1">
+                    {{expense_form.name}}
+                </div>
+            </div>
+
+            <div class="mx-10">
+                <div class="mb-5">
+                    <label class="font-semibold">Expense category</label>
+                </div>
+                <div class="border p-1">
+                    {{expense_form.category}}
+                </div>
+            </div>
+
+            <div class="mx-10">
+
+                <div class="mb-5">
+                    <label class="font-semibold">Expense amount</label>
+                </div>
+                <div class="border p-1">
+                    {{expense_form.amount}}
+                </div>
+            </div>
+            <div class"mx-10 mt-10">
+                <button class="bg-green-500 px-5 py-2 text-white font-bold" type="submit">Edit data</button>
+            </div>
+        </div>
+   
+    </form>
+{% endblock %}
+
+
+
+##add delete view in views.py
+
+def delete(request, id):
+    if request.method == "POST":
+        expense = Expense.objects.get(id=id)
+        expense.delete()
+    return redirect('index')
+
+
+##add url pattern for deletion in urls.py
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('edit/<int:id>/', views.edit, name='edit'),
+    path('delete/<int:id>/', views.delete, name='delete'),
+]
+
+
+##update index.html Delete button part
+
+...
+ <span class="button"><a href="{% url 'edit' expense.id %}">Edit</a></span>
+            <span class="font-bold">
+                <form method="post" action="{% url 'delete' expense.id%}">
+                    {%csrf_token%}
+                    <button type="submit" name="delete">
+                        Delete
+                    </button>
+                </form>
+            </span>
+        </div>
+        {%endfor%}
+,,,
+
+
+##add the additional name validation for deletion in def delete()
+
+def delete(request, id):
+    if request.method == "POST" and 'delete' in request.POST:
+        expense = Expense.objects.get(id=id)
+        expense.delete()
+    return redirect('index')
+
+
+##add the images folder in myapp/static
+
+##change the names of buttons with images in index.html (add {% load static %} at the top of the index.html)
+
+...
+   <span class="font-bold">{{ expense.date }}</span>
+            <span class="pl-24"><a href="{% url 'edit' expense.id %}">
+                <img class="h-7" src="{% static 'myapp/images/edit.png' %}" alt="Edit">
+                </a></span>
+            <span class="pl-22">
+                <form method="post" action="{% url 'delete' expense.id%}">
+                    {%csrf_token%}
+                    <button type="submit" name="delete">
+                        <img class="h-7" src="{% static 'myapp/images/delete.png' %}" alt="Edit">
+                    </button>
+                </form>
+            </span>
+        </div>
+        {%endfor%}
+    </div>
+...
+
+
+##and nav-bar in base.html
+
+...
+<body>
+    <nav class="shadow-lg p-5">
+        <div class="container flex flex-wrap justify-between items-center  mx-auto">
+            <a href="#" class="flex">
+                <img class="h-10 mr-3"src="{% static 'myapp/images/wallet.png'%}" alt="">
+                <span class="self-center text-xl font-bold">Expense Tracker</span>
+        </div>
+    </nav>
+
+    
+    {%block body%}
+...
+
+
+##add expenses summation in views.py def index()
+
+...
+from django.db.models import Sum
+
+# Create your views here.
+def index(request):
+    if request.method == "POST":
+        expense = ExpenseForm(request.POST)
+        if expense.is_valid():
+            expense.save()
+        
+    expenses = Expense.objects.all()
+    total_expenses = expenses.aggregate(Sum('amount'))
+    
+    expense_form = ExpenseForm()
+    return render(request, 'myapp/index.html', {'expense_form':expense_form, 'expenses':expenses, 'total_expenses':total_expenses})
+...
+
+
+##update index.html with total expenses value from view
+
+...
+ {%endfor%}
+        <div class="px-72 py-5">
+            <span class="font-bold text-green-500">
+                Total: {{total_expenses.amount__sum}}
+            </span>
+        </div>
+    </div>
+...
+
+##add the yearly and monthly expenses count in year (update def index() in views.py)
+
+...
+    expenses = Expense.objects.all()
+    total_expenses = expenses.aggregate(Sum('amount'))
+    
+    last_year = datetime.date.today() - datetime.timedelta(days=365)
+    data = Expense.objects.filter(date__gt=last_year)
+    yearly_sum = data.aggregate(Sum('amount'))
+    
+    last_month = datetime.date.today() - datetime.timedelta(days=30)
+    data = Expense.objects.filter(date__gt=last_month)
+    monthly_sum = data.aggregate(Sum('amount'))
+    
+    last_week = datetime.date.today() - datetime.timedelta(days=7)
+    data = Expense.objects.filter(date__gt=last_week)
+    weekly_sum = data.aggregate(Sum('amount'))
+    
+    expense_form = ExpenseForm()
+    return render(request, 'myapp/index.html', {'expense_form':expense_form, 'expenses':expenses, 'total_expenses':total_expenses, 'yearly_sum':yearly_sum, 'monthly_sum': monthly_sum, 'weekly_sum':weekly_sum})
+...
+
+
+##display the sums in index.html
+
+
+...
+    </div>
+    
+    <div class="flex">
+        <div class="w-1/3 shadow-lg ml-10 rounded-lg">
+            <h1 class="ml-10 font-bold text-gray-500">Last 365 days</h1>
+            <h1 class="ml-10 my-5 text-2xl text-green-500 font-bold">
+                {{yearly_sum.amount__sum}}
+            </h1>
+        </div>
+
+        <div class="w-1/3 shadow-lg ml-10 rounded-lg">
+            <h1 class="ml-10 font-bold text-gray-500">Last 30 days</h1>
+            <h1 class="ml-10 my-5 text-2xl text-green-500 font-bold">
+                {{monthly_sum.amount__sum}}
+            </h1>
+        </div>
+
+        <div class="w-1/3 shadow-lg ml-10 rounded-lg">
+            <h1 class="ml-10 font-bold text-gray-500">Last 7 days</h1>
+            <h1 class="ml-10 my-5 text-2xl text-green-500 font-bold">
+                {{weekly_sum.amount__sum}}
+            </h1>
+        </div>
+    </div>
+
+
+{%endblock%}
+...
+
+
+
+##in views.py add the counting of expenses by days 
+
+...
+
+    data = Expense.objects.filter(date__gt=last_week)
+    weekly_sum = data.aggregate(Sum('amount'))
+
+    daily_sums = Expense.objects.filter().values('date').order_by('date').annotate(sum=Sum('amount'))
+...
+(add context as daily_sums)
+
+##update the index.html
+
+
+...
+         <h1 class="ml-10 my-5 text-2xl text-green-500 font-bold">
+                {{weekly_sum.amount__sum}}
+            </h1>
+        </div>
+    </div>
+
+    <div class="flex">
+        <div class="w-1/2 shadow-lg m-10">
+            <div class="flex flex-wrap space-x-40 font-bold px-20 py-5">
+                <span>Past 30 days sum expenses</span>
+            </div>
+            <hr>
+            <div id="30-day-table">
+                {% for daily_sum in daily_sums%}
+                    <div class="flex flex-wrap px-20 py-5">
+                        <span>
+                            {{daily_sum.date}}
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap px-20 py-5">
+                        <span class="text-green-500">
+                            {{daily_sum.sum}}
+                        </span>
+                    </div>
+                {%endfor%}
+            </div>
+        </div>
+    </div>
+
+
+{%endblock%}
+...
+
+
+##add categorical summation in def index()
+
+categorical_sums = Expense.objects.filter().values('category').order_by('category').annotate(sum=Sum('amount'))
+...
+(add context as categorical_sums)
+
+##update index.html with categorical sum 
+
+...
+              {{daily_sum.sum}}
+                        </span>
+                    </div>
+                {%endfor%}
+            </div>
+        </div>
+
+        <div class="w-1/2 shadow-lg m-10">
+            <div class="flex flex-wrap space-x-40 font-bold px-20 py-5">
+                <span>Categorical sum expenses</span>
+            </div>
+            <hr>
+            <div id="categorical-table">
+                {% for categorical_sum in categorical_sums%}
+                    <div class="flex flex-wrap px-20 py-5">
+                        <span>
+                            {{categorical_sum.category}}
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap px-20 py-5">
+                        <span class="text-green-500">
+                            {{categorical_sum.sum}}
+                        </span>
+                    </div>
+                {%endfor%}
+            </div>
+        </div>
+    </div>
+
+
+{%endblock%}
+...
+
+
+
+##add chart.js inside the index.html
+
+...
+               {%endfor%}
+            </div>
+        </div>
+    </div>
+
+    <div class="flex">
+        <div class="w-1/2 shadow-lg ml-10">
+            <h1 class="m-10">Expense spread across categories</h1>
+            <canvas id="myChart" class="m-10"></canvas>
+        </div>
+        <div class="w-1/2 shadow-lg ml-10">
+            <h1 class="m-10">Daily Expense Sum</h1>
+            <canvas id="myChart1" class="m-10"></canvas>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.0.2/dist/chart.min.js"></script>
+
+    <script>
+
+        const cats = []
+        const cat_sums=[]
+
+        const dates=[]
+        const sums=[]
+        
+        const catSumDiv = document.getElementById('categorical-table').getElementsByTagName('div');
+        
+        for(i=0;i<catSumDiv.length;i++){
+            if(i%2 ==1){
+                cat_sums.push(catSumDiv[i].innerText.replace("$",""))
+            }else{
+                cats.push(catSumDiv[i].innerText)
+            }
+        }
+
+
+        const dailySumDiv = document.getElementById('30-day-table').getElementsByTagName('div');
+        
+        for(i=0;i<dailySumDiv.length;i++){
+            if(i%2 ==1){
+                sums.push(dailySumDiv[i].innerText.replace("$",""))
+            }else{
+                dates.push(dailySumDiv[i].innerText)
+            }
+        }
+        
+
+var ctx = document.getElementById('myChart').getContext('2d');
+var myChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: cats,
+        datasets: [{
+            label: 'Expense across categories',
+            data: cat_sums,
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.2)',
+                'rgba(54, 162, 235, 0.2)',
+                'rgba(255, 206, 86, 0.2)',
+                'rgba(75, 192, 192, 0.2)',
+                'rgba(153, 102, 255, 0.2)',
+                'rgba(255, 159, 64, 0.2)'
+            ],
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+
+console.log(dates)
+console.log(sums)
+var ctx1 = document.getElementById('myChart1').getContext('2d');
+var myChart1 = new Chart(ctx1, {
+    type: 'line',
+    data: {
+        labels: dates,
+        datasets: [{
+            label: 'Sum of daily expenses',
+            data: sums,
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.2)',
+                'rgba(54, 162, 235, 0.2)',
+                'rgba(255, 206, 86, 0.2)',
+                'rgba(75, 192, 192, 0.2)',
+                'rgba(153, 102, 255, 0.2)',
+                'rgba(255, 159, 64, 0.2)'
+            ],
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+    </script>
+
+{%endblock%}
+
+
